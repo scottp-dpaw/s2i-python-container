@@ -7,6 +7,10 @@ function is_gunicorn_installed() {
   hash gunicorn &>/dev/null
 }
 
+function is_uwsgi_installed() {
+  hash uwsgi &>/dev/null
+}
+
 function is_django_installed() {
   python -c "import django" &>/dev/null
 }
@@ -60,6 +64,16 @@ APP_HOME=${APP_HOME:-.}
 # Look for 'manage.py' in the directory specified by APP_HOME, or the current direcotry
 manage_file=$APP_HOME/manage.py
 
+if [[ -z "$APP_MODULE" ]]; then
+  # Look only in the directory specified by APP_HOME, or the current directory
+  # replace all "/" with ".", remove leading "." and ".py" suffix
+  APP_MODULE=$(find $APP_HOME -maxdepth 1 -type f -name 'wsgi.py' | sed 's:/:.:g;s:^\.\+::;s:\.py$::')
+fi
+
+if [[ -z "$APP_MODULE" && -f setup.py ]]; then
+  APP_MODULE="$(python setup.py --name)"
+fi
+
 if should_migrate; then
   if [[ -f "$manage_file" ]]; then
     echo "---> Migrating database ..."
@@ -71,16 +85,6 @@ if should_migrate; then
 fi
 
 if is_gunicorn_installed; then
-  if [[ -z "$APP_MODULE" ]]; then
-    # Look only in the directory specified by APP_HOME, or the current directory
-    # replace all "/" with ".", remove leading "." and ".py" suffix
-    APP_MODULE=$(find $APP_HOME -maxdepth 1 -type f -name 'wsgi.py' | sed 's:/:.:g;s:^\.\+::;s:\.py$::')
-  fi
-
-  if [[ -z "$APP_MODULE" && -f setup.py ]]; then
-    APP_MODULE="$(python setup.py --name)"
-  fi
-
   if [[ "$APP_MODULE" ]]; then
     export WEB_CONCURRENCY=${WEB_CONCURRENCY:-$(get_default_web_concurrency)}
 
@@ -89,11 +93,22 @@ if is_gunicorn_installed; then
   fi
 fi
 
+if is_uwsgi_installed; then
+  if [[ "$APP_MODULE" ]]; then
+    echo "---> Serving application with uwsgi ($APP_MODULE) ..."
+    args=(uwsgi --http-socket=:8080 --die-on-term --processes=${WEB_CONCURRENCY:-$(get_default_web_concurrency)} --module "$APP_MODULE")
+    if [[ ! -z "$APP_CONFIG" ]]; then
+      args+=(--ini $APP_CONFIG)
+    fi
+    exec "${args[@]}"
+  fi
+fi
+
 if is_django_installed; then
   if [[ -f "$manage_file" ]]; then
     echo "---> Serving application with 'manage.py runserver' ..."
     echo "WARNING: this is NOT a recommended way to run you application in production!"
-    echo "Consider using gunicorn or some other production web server."
+    echo "Consider using gunicorn, uwsgi or some other production web server."
     exec python "$manage_file" runserver 0.0.0.0:8080
   else
     echo "WARNING: seems that you're using Django, but we could not find a 'manage.py' file."

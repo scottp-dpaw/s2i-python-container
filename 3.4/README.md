@@ -63,13 +63,14 @@ file inside your source code repository.
 
 * **APP_MODULE**
 
-    Used to run the application with Gunicorn, as documented
-    [here](http://docs.gunicorn.org/en/latest/run.html#gunicorn).
+    Used to run the application with Gunicorn (as documented
+    [here](http://docs.gunicorn.org/en/latest/run.html#gunicorn)) or uWSGI (as documented
+    [here](http://uwsgi-docs.readthedocs.io/en/latest/WSGIquickstart.html)).
     This variable specifies a WSGI callable with the pattern
     `MODULE_NAME:VARIABLE_NAME`, where `MODULE_NAME` is the full dotted path
     of a module, and `VARIABLE_NAME` refers to a WSGI callable inside the
     specified module.
-    Gunicorn will look for a WSGI callable named `application` if not specified.
+    Gunicorn/uWSGI will look for a WSGI callable named `application` if not specified.
 
     If `APP_MODULE` is not provided, the `run` script will look for a `wsgi.py`
     file in your project and use it if it exists.
@@ -81,15 +82,15 @@ file inside your source code repository.
 * **APP_HOME**
 
     This variable can be used to specify a sub-directory in which the application to be run is contained.
-    The directory pointed to by this variable needs to contain `wsgi.py` (for Gunicorn) or `manage.py` (for Django).
+    The directory pointed to by this variable needs to contain `wsgi.py` (for Gunicorn/uWSGI) or `manage.py` (for Django).
 
     If `APP_HOME` is not provided, the `assemble` and `run` scripts will use the application's root
     directory.
 
 * **APP_CONFIG**
 
-    Path to a valid Python file with a
-    [Gunicorn configuration](http://docs.gunicorn.org/en/latest/configure.html#configuration-file) file.
+    Path to a [Gunicorn configuration file](http://docs.gunicorn.org/en/latest/configure.html#configuration-file) in Python format, or
+    a [uWSGI configuration file](http://uwsgi-docs.readthedocs.io/en/latest/Configuration.html) in INI format.
 
 * **DISABLE_MIGRATE**
 
@@ -183,9 +184,23 @@ following ways, in precedence order:
   If you have both Django and Gunicorn in your requirements, your Django project
   will automatically be served using Gunicorn.
 
+* **uWSGI**
+
+  The uWSGI HTTP server is used to serve your application in the case that it
+  is installed. It can be installed by listing it either in the `requirements.txt`
+  file or in the `install_requires` section of the `setup.py` file.
+
+  If a file named `wsgi.py` is present in your repository, it will be used as
+  the entry point to your application. This can be overridden with the
+  environment variable `APP_MODULE`.
+  This file is present in Django projects by default.
+
+  If you have both Django and uWSGI in your requirements, your Django project
+  will automatically be served using uWSGI.
+
 * **Django development server**
 
-  If you have Django in your requirements but don't have Gunicorn, then your
+  If you have Django in your requirements but don't have Gunicorn/uWSGI, then your
   application will be served using Django's development web server. However, this is not
   recommended for production environments.
 
